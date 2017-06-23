@@ -9,59 +9,59 @@
 import UIKit
 
 extension UIColor {
-    //System default bar tint color
+    // System default bar tint color
     open class var defaultNavBarTintColor: UIColor {
         return UIColor(red: 0, green: 0.478431, blue: 1, alpha: 1.0)
     }
 }
 
 extension DispatchQueue {
-    
+
     private static var _onceTracker = [String]()
 
     public class func once(token: String, block: () -> Void) {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
-        
+
         if _onceTracker.contains(token) {
             return
         }
-        
+
         _onceTracker.append(token)
         block()
     }
 }
 
 extension UINavigationController {
-    
+
     open override func viewDidLoad() {
         super.viewDidLoad()
         delegate = self
     }
 
-    override open var preferredStatusBarStyle: UIStatusBarStyle {
+    open override var preferredStatusBarStyle: UIStatusBarStyle {
         return topViewController?.preferredStatusBarStyle ?? .default
     }
-    
+
     static let _onceToken = UUID().uuidString
-    
-    open override class func initialize(){
-        
+
+    open override class func initialize() {
+
         if self == UINavigationController.self {
-            
+
             DispatchQueue.once(token: _onceToken) {
                 let needSwizzleSelectorArr = [
                     NSSelectorFromString("_updateInteractiveTransition:"),
                     #selector(popToViewController),
-                    #selector(popToRootViewController)
+                    #selector(popToRootViewController),
                 ]
 
                 for selector in needSwizzleSelectorArr {
-                    
+
                     let str = ("et_" + selector.description).replacingOccurrences(of: "__", with: "_")
                     /*
-                        popToRootViewControllerAnimated: et_popToRootViewControllerAnimated:*/
-                    
+                     popToRootViewControllerAnimated: et_popToRootViewControllerAnimated:*/
+
                     let originalMethod = class_getInstanceMethod(self, selector)
                     let swizzledMethod = class_getInstanceMethod(self, Selector(str))
                     method_exchangeImplementations(originalMethod, swizzledMethod)
@@ -76,11 +76,11 @@ extension UINavigationController {
             et_updateInteractiveTransition(percentComplete)
             return
         }
-        
+
         let fromVC = coor.viewController(forKey: .from)
         let toVC = coor.viewController(forKey: .to)
-        
-        //Bg Alpha
+
+        // Bg Alpha
         let fromAlpha = fromVC?.navBarBgAlpha ?? 0
         let toAlpha = toVC?.navBarBgAlpha ?? 0
         let nowAlpha = fromAlpha + (toAlpha - fromAlpha) * percentComplete
@@ -95,14 +95,14 @@ extension UINavigationController {
         et_updateInteractiveTransition(percentComplete)
     }
 
-    //Calculate the middle Color with translation percent
-    private func averageColor(fromColor:UIColor, toColor:UIColor, percent:CGFloat) -> UIColor {
+    // Calculate the middle Color with translation percent
+    private func averageColor(fromColor: UIColor, toColor: UIColor, percent: CGFloat) -> UIColor {
         var fromRed: CGFloat = 0.0
         var fromGreen: CGFloat = 0.0
         var fromBlue: CGFloat = 0.0
         var fromAlpha: CGFloat = 0.0
         fromColor.getRed(&fromRed, green: &fromGreen, blue: &fromBlue, alpha: &fromAlpha)
-        
+
         var toRed: CGFloat = 0.0
         var toGreen: CGFloat = 0.0
         var toBlue: CGFloat = 0.0
@@ -113,7 +113,7 @@ extension UINavigationController {
         let nowGreen = fromGreen + (toGreen - fromGreen) * percent
         let nowBlue = fromBlue + (toBlue - fromBlue) * percent
         let nowAlpha = fromAlpha + (toAlpha - fromAlpha) * percent
-        
+
         return UIColor(red: nowRed, green: nowGreen, blue: nowBlue, alpha: nowAlpha)
     }
 
@@ -130,7 +130,7 @@ extension UINavigationController {
     }
 
     fileprivate func setNeedsNavigationBackground(alpha: CGFloat) {
-        
+
         let barBackgroundView = navigationBar.subviews[0]
 
         let valueForKey = barBackgroundView.value(forKey:)
@@ -147,7 +147,7 @@ extension UINavigationController {
                 }
 
             } else {
-                if let adaptiveBackdrop = valueForKey("_adaptiveBackdrop") as? UIView , let backdropEffectView = adaptiveBackdrop.value(forKey: "_backdropEffectView") as? UIView {
+                if let adaptiveBackdrop = valueForKey("_adaptiveBackdrop") as? UIView, let backdropEffectView = adaptiveBackdrop.value(forKey: "_backdropEffectView") as? UIView {
                     backdropEffectView.alpha = alpha
                     return
                 }
@@ -158,29 +158,29 @@ extension UINavigationController {
     }
 }
 
-extension UINavigationController: UINavigationControllerDelegate,UINavigationBarDelegate {
-    
-    public func navigationController(_ navigationController: UINavigationController, willShow viewController: UIViewController, animated: Bool) {
+extension UINavigationController: UINavigationControllerDelegate, UINavigationBarDelegate {
+
+    public func navigationController(_ navigationController: UINavigationController, willShow _: UIViewController, animated _: Bool) {
         guard let topVC = navigationController.topViewController, let coor = topVC.transitionCoordinator else {
             return
         }
-        
+
         if #available(iOS 10.0, *) {
-            coor.notifyWhenInteractionChanges({ (context) in
+            coor.notifyWhenInteractionChanges({ context in
                 self.dealInteractionChanges(context)
             })
         } else {
-            coor.notifyWhenInteractionEnds({ (context) in
+            coor.notifyWhenInteractionEnds({ context in
                 self.dealInteractionChanges(context)
             })
         }
     }
 
     private func dealInteractionChanges(_ context: UIViewControllerTransitionCoordinatorContext) {
-        let animations: (UITransitionContextViewControllerKey) -> () = {
+        let animations: (UITransitionContextViewControllerKey) -> Void = {
             let nowAlpha = context.viewController(forKey: $0)?.navBarBgAlpha ?? 0
             self.setNeedsNavigationBackground(alpha: nowAlpha)
-            
+
             self.navigationBar.tintColor = context.viewController(forKey: $0)?.navBarTintColor
         }
 
@@ -197,7 +197,7 @@ extension UINavigationController: UINavigationControllerDelegate,UINavigationBar
         }
     }
 
-    public func navigationBar(_ navigationBar: UINavigationBar, shouldPop item: UINavigationItem) -> Bool {
+    public func navigationBar(_ navigationBar: UINavigationBar, shouldPop _: UINavigationItem) -> Bool {
         if let topVC = topViewController, let coor = topVC.transitionCoordinator, coor.initiallyInteractive {
             return true
         }
@@ -207,10 +207,11 @@ extension UINavigationController: UINavigationControllerDelegate,UINavigationBar
         let popToVC = viewControllers[viewControllers.count - n]
 
         popToViewController(popToVC, animated: true)
+
         return true
     }
 
-    public func navigationBar(_ navigationBar: UINavigationBar, shouldPush item: UINavigationItem) -> Bool {
+    public func navigationBar(_ navigationBar: UINavigationBar, shouldPush _: UINavigationItem) -> Bool {
         setNeedsNavigationBackground(alpha: topViewController?.navBarBgAlpha ?? 0)
         navigationBar.tintColor = topViewController?.navBarTintColor
         return true
@@ -218,26 +219,25 @@ extension UINavigationController: UINavigationControllerDelegate,UINavigationBar
 }
 
 extension UIViewController {
-    
+
     fileprivate struct AssociatedKeys {
         static var navBarBgAlpha: CGFloat = 1.0
         static var navBarTintColor: UIColor = UIColor.defaultNavBarTintColor
     }
-    
+
     open var navBarBgAlpha: CGFloat {
         get {
             guard let alpha = objc_getAssociatedObject(self, &AssociatedKeys.navBarBgAlpha) as? CGFloat else {
                 return 1.0
             }
             return alpha
-            
         }
         set {
             let alpha = max(min(newValue, 1), 0) // 必须在 0~1的范围
 
             objc_setAssociatedObject(self, &AssociatedKeys.navBarBgAlpha, alpha, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
 
-            //Update UI
+            // Update UI
             navigationController?.setNeedsNavigationBackground(alpha: alpha)
         }
     }
@@ -248,7 +248,6 @@ extension UIViewController {
                 return UIColor.defaultNavBarTintColor
             }
             return tintColor
-            
         }
         set {
             navigationController?.navigationBar.tintColor = newValue
