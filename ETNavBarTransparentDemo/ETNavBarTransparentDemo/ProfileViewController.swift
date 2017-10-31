@@ -24,6 +24,8 @@ class ProfileViewController: UIViewController {
 
         navBarBgAlpha = 0
         navBarTintColor = .white
+
+        tableView.transform = CGAffineTransform(rotationAngle: -.pi)
     }
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
@@ -55,6 +57,7 @@ extension ProfileViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "profileCell", for: indexPath)
         cell.textLabel?.text = "第\(indexPath.row)行"
+        cell.transform = CGAffineTransform(rotationAngle: .pi)
         return cell
     }
 }
